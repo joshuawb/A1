@@ -1,0 +1,166 @@
+---
+title: "A1.Rmd"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+penguins = penguins[complete.cases(penguins),]
+X = scale(penguins[,3:6], scale=TRUE)
+#n = 333, p = 4, r = 4 
+pdf("pca1.pdf",paper="special",width=15,height=8)
+par(mfrow=c(2,2))
+plot(X,asp=1,pch=19,col=rgb(0,0,1,alpha=0.2))
+pc = prcomp(X)
+#3 pages
+
+plot(pc,type="l",main="")
+plot(1:4,cumsum(pc$sdev^2)/sum(pc$sdev^2),type="l",xlim=c(1,4),xlab="", ylab="proportion of variance explained")
+grid()
+
+#Z matrix
+pc$x
+Z = X %*% t(pc$rotation)
+#A matrix
+t(pc$rotation)
+
+```
+
+```{r}
+A = t(pc$rotation)
+Z = X %*% t(A)
+
+#picks up on inconsistencies
+#in rounding so return FALSE
+identical(Z, pc$x)
+all(Z == pc$x)
+
+#returns TRUE which shows X %*% t(A) is
+#(close) equal to Z
+all(Z - pc$x < 1.0 * 10^-14)
+```
+```{r}
+covmat = 1/(333-1) * t(X) %*% X
+A1 = princomp(covmat=covmat)
+A1$loadings
+```
+
+```{r}
+library(kernlab)
+data(spam)
+
+Xspam = scale(spam[,1:57])
+
+pcspam = prcomp(Xspam)
+pdf("pca2.pdf",paper="special",width=15,height=8)
+par(mfrow=c(2,2))
+plot(pcspam, type="l",main="")
+plot(1:57,cumsum(pcspam$sdev^2)/sum(pcspam$sdev^2),type="l",xlim=c(0,60),xlab="",ylab="proportion of variance explained")
+grid()
+
+#Z matrix
+pcspam$x
+
+#A matrix
+pcspam$rotation
+
+
+```
+
+```{r}
+library(sparsepca)
+sp = spca(Xspam,k=57, alpha = 1/100, beta=0, verbose=FALSE)
+#pdf("pca3.pdf",paper="special",width=15,height=8)
+par(mfrow=c(1,2))
+plot(pcspam$sdev^2,ylim=c(0,8))
+points(sp$sdev^2,col="red")
+plot(sp$loadings[,1])
+which(sp$loadings[,1] != 0)
+```
+
+```{r}
+set.seed(238)
+  train = sample(nrow(spam),0.7*nrow(spam))
+  test = -train
+  Xtrain = scale(spam[train,-58])
+  Xtest = scale(spam[test,-58],center=attr(Xtrain,"scaled:center"),
+                  scale=attr(Xtrain,"scaled:scale"))
+    pc = prcomp(Xtrain)
+    Atr = pc$rotation
+  
+  Ztrain = Xtrain %*% Atr[,1:2]
+  Ztrain = data.frame(Ztrain, spam[train,58])
+  
+  Ztest = Xtest %*% Atr[,1:10]
+  Ztest = data.frame(Ztest, spam[test,58])
+  
+  mdl = glm(spam.test..58.~., data=Ztest, family="binomial")
+  pred = predict(mdl, type="response")
+  table(pred>0.5, Ztest$spam.test..58.)
+  
+  mdl = glm(spam.test..58.~.-PC10, data=Ztest, family="binomial")
+  pred = predict(mdl, type="response")
+  table(pred>0.5, Ztest$spam.test..58.)
+  
+  mdl = glm(spam.test..58.~.-PC10-PC9, data=Ztest, family="binomial")
+  pred = predict(mdl, type="response")
+  table(pred>0.5, Ztest$spam.test..58.)
+  
+  mdl = glm(spam.test..58.~.-PC10-PC9-PC8, data=Ztest, family="binomial")
+  pred = predict(mdl, type="response")
+  table(pred>0.5, Ztest$spam.test..58.)
+  
+  mdl = glm(spam.test..58.~.-PC10-PC9-PC8-PC7, data=Ztest, family="binomial")
+  pred = predict(mdl, type="response")
+  table(pred>0.5, Ztest$spam.test..58.)
+  
+  mdl = glm(spam.test..58.~.-PC10-PC9-PC8-PC7-PC6, data=Ztest, family="binomial")
+  pred = predict(mdl, type="response")
+  table(pred>0.5, Ztest$spam.test..58.)
+  
+  mdl = glm(spam.test..58.~.-PC10-PC9-PC8-PC7-PC6-PC5, data=Ztest, family="binomial")
+  pred = predict(mdl, type="response")
+  table(pred>0.5, Ztest$spam.test..58.)
+  
+    mdl = glm(spam.test..58.~.-PC10-PC9-PC8-PC7-PC6-PC5-PC4, data=Ztest, family="binomial")
+  pred = predict(mdl, type="response")
+  table(pred>0.5, Ztest$spam.test..58.)
+  
+    mdl = glm(spam.test..58.~.-PC10-PC9-PC8-PC7-PC6-PC5-PC4-PC3, data=Ztest, family="binomial")
+  pred = predict(mdl, type="response")
+  table(pred>0.5, Ztest$spam.test..58.)
+  
+  
+  
+
+  
+
+```
+```{r}
+library(kernlab)
+kpc = kpca(Xtrain, kernel = "rbfdot",kpar=list(sigma=0.001),features=2)
+#eig(kpc)
+
+```
+
+```{r}
+Z = rotated(kpc)
+pdf("pca4.pdf",paper="special",width=15,height=8)
+pairs(Z,col=as.numeric(Ztrain$spam.train..58.))
+pairs(Ztrain[,1:2],col=as.numeric(Ztrain$spam.train..58.))
+
+  mdl = glm(spam.test..58.~., data=kpc, family="binomial")
+  pred = predict(mdl, type="response")
+  table(pred>0.5, Ztest$spam.test..58.)
+  
+  pred2 = predict(kpc, type="response")
+```
